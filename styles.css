@@ -1,0 +1,538 @@
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#f5f7fb;color:#1f2937}
+header{background:#3157d5;color:#fff;padding:20px 6%;display:flex;align-items:center;justify-content:space-between;gap:16px}
+header h1{margin:0;font-size:28px}
+.container{max-width:1100px;margin:28px auto;padding:0 20px}
+.hero,.card,.panel,.step{background:#fff;border-radius:20px}
+.hero{padding:34px 24px;text-align:center}
+.hero h2{margin:0 0 10px;font-size:36px}
+.hero p{max-width:760px;margin:auto;color:#667085;line-height:1.6}
+.card{padding:22px;margin-top:20px;box-shadow:0 6px 24px rgba(31,41,55,.07)}
+.controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.controls label{font-weight:700}
+select,button,input[type=file]+label{min-height:44px;border-radius:10px}
+select{padding:9px 12px;border:1px solid #cbd5e1;background:#fff;font-size:15px}
+button,input[type=file]+label{border:0;padding:10px 14px;font-size:15px;font-weight:700;cursor:pointer}
+button.primary{background:#3157d5;color:#fff}
+button.secondary{background:#e8edff;color:#3157d5}
+#uploadLabel{
+  background:#e8edff!important;
+  color:#3157d5!important;
+  border:0;
+  border-radius:12px;
+  padding:10px 16px;
+  min-height:44px;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  cursor:pointer;
+}
+#uploadLabel:hover{background:#dce5ff!important}
+button:disabled{opacity:.5;cursor:not-allowed}
+.timer{font-size:28px;font-weight:800;color:#3157d5;margin-left:auto;min-width:92px;text-align:right}
+.status{margin-top:12px;min-height:24px;color:#3157d5;font-weight:700}
+.small{font-size:13px;color:#667085;margin-top:6px}
+.game{display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-top:20px}
+.panel{padding:15px;border:2px dashed #cbd5e1;background:#fafbff}
+.panel h3{margin:0 0 10px}
+.picturebox{background:#fff;border-radius:12px;overflow:hidden;height:260px}
+canvas{display:block;width:100%;height:100%}
+#drawCanvas{touch-action:none;cursor:crosshair}
+.actions{margin-top:14px}
+.feedback{display:none;margin-top:16px;padding:15px;border-radius:12px;background:#eef2ff}
+.score{font-size:36px;font-weight:800;margin:5px 0}
+.bar{height:10px;border-radius:10px;background:#e5e7eb;overflow:hidden}
+.bar>div{height:100%;width:0;background:#3157d5;transition:width .4s ease}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:20px}
+.step{padding:18px}
+.step b{color:#3157d5}
+.step p{color:#667085;line-height:1.5;margin-bottom:0}
+.upload-list{margin-top:10px;color:#475467;font-size:13px}
+@media(max-width:780px){
+  .game,.steps{grid-template-columns:1fr}
+  .timer{margin-left:0;text-align:left}
+  .hero h2{font-size:30px}
+}
+
+/* Liquid Glass visual layer */
+:root{
+  --glass-border:rgba(255,255,255,.72);
+  --glass-shadow:0 18px 50px rgba(31,41,55,.12),inset 0 1px 0 rgba(255,255,255,.72);
+}
+html{scroll-behavior:smooth}
+body{
+  background:#ffffff;
+  overflow-x:hidden;
+  position:relative;
+}
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  z-index:-3;
+  background:
+    radial-gradient(500px 260px at 12% 18%, rgba(82,137,255,.055), transparent 70%),
+    radial-gradient(430px 260px at 88% 22%, rgba(188,120,255,.045), transparent 72%),
+    radial-gradient(520px 280px at 50% 78%, rgba(70,180,255,.035), transparent 74%);
+}
+header,.hero,.card,.panel,.step{
+  position:relative;
+  overflow:hidden;
+  isolation:isolate;
+  border:1px solid rgba(255,255,255,.42);
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.34),rgba(255,255,255,.075)),
+    linear-gradient(110deg,rgba(92,140,255,.035),transparent 28%,rgba(210,155,255,.025) 68%,transparent 100%);
+  box-shadow:
+    0 22px 55px rgba(31,41,55,.075),
+    0 7px 18px rgba(31,41,55,.04),
+    inset 0 1px 0 rgba(255,255,255,.92),
+    inset 0 -1px 0 rgba(125,137,158,.075),
+    inset 1px 0 0 rgba(255,255,255,.10),
+    inset -1px 0 0 rgba(255,255,255,.06);
+  backdrop-filter:blur(17px) saturate(185%) contrast(103%);
+  -webkit-backdrop-filter:blur(17px) saturate(185%) contrast(103%);
+  transition:transform .28s ease,box-shadow .28s ease,border-color .28s ease;
+}
+header::before,.hero::before,.card::before,.panel::before,.step::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius:inherit;
+  pointer-events:none;
+  background:
+    linear-gradient(120deg,rgba(255,255,255,.30) 0%,rgba(255,255,255,.08) 13%,transparent 34%),
+    linear-gradient(300deg,rgba(255,255,255,.12) 0%,transparent 22%);
+  opacity:.85;
+  mix-blend-mode:screen;
+}
+
+header::after,.hero::after,.card::after,.panel::after,.step::after{
+  content:"";
+  position:absolute;
+  inset:1px;
+  border-radius:inherit;
+  pointer-events:none;
+  border:1px solid rgba(255,255,255,.16);
+  background:
+    linear-gradient(115deg,rgba(255,255,255,.18),transparent 24%,transparent 72%,rgba(255,255,255,.075)),
+    linear-gradient(180deg,rgba(255,255,255,.08),transparent 25%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.36),
+    inset 0 -1px 0 rgba(120,135,160,.04);
+  mix-blend-mode:screen;
+}
+header{
+  background:#3157d5;
+  border:0;
+  box-shadow:0 8px 24px rgba(49,87,213,.18);
+  position:sticky;
+  top:0;
+  z-index:50;
+  width:100%;
+  margin:0;
+  border-radius:0;
+}
+.hero{margin-top:22px}
+.panel{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.23),rgba(255,255,255,.055)),
+    linear-gradient(105deg,rgba(76,136,255,.025),transparent 30%,rgba(210,150,255,.018));
+  box-shadow:
+    0 16px 36px rgba(31,41,55,.055),
+    0 4px 12px rgba(31,41,55,.025),
+    inset 0 1px 0 rgba(255,255,255,.95),
+    inset 0 -1px 0 rgba(125,137,158,.055),
+    inset 1px 0 0 rgba(255,255,255,.08),
+    inset -1px 0 0 rgba(255,255,255,.05);
+}
+select,button,#uploadLabel{
+  position:relative;
+  overflow:hidden;
+  border:1px solid rgba(165,176,194,.30);
+  border-radius:15px;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.48),rgba(255,255,255,.10)),
+    linear-gradient(110deg,rgba(100,150,255,.025),transparent 42%,rgba(208,158,255,.018));
+  color:#3157d5;
+  box-shadow:
+    0 10px 22px rgba(60,72,92,.055),
+    0 2px 5px rgba(60,72,92,.025),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(130,142,163,.07),
+    inset 1px 0 0 rgba(255,255,255,.07),
+    inset -1px 0 0 rgba(255,255,255,.04);
+  backdrop-filter:blur(15px) saturate(185%);
+  -webkit-backdrop-filter:blur(15px) saturate(185%);
+  transition:transform .16s ease,box-shadow .16s ease,background .16s ease,border-color .16s ease;
+}
+select{
+  background:linear-gradient(145deg,rgba(255,255,255,.80),rgba(255,255,255,.34))!important;
+  color:#1f2937;
+}
+button.primary{
+  background:
+    linear-gradient(145deg,rgba(84,123,232,.18),rgba(49,87,213,.055)),
+    linear-gradient(110deg,rgba(255,255,255,.24),rgba(255,255,255,.03))!important;
+  color:#244fc7;
+  border-color:rgba(70,100,190,.20);
+}
+button.secondary,#uploadLabel{
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.24))!important;
+  color:#3157d5!important;
+}
+button:hover,#uploadLabel:hover,select:hover{
+  transform:translateY(-1px) scale(1.01);
+  border-color:rgba(150,160,180,.42);
+  box-shadow:
+    0 10px 22px rgba(60,72,92,.08),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(150,160,180,.10);
+}
+
+.picturebox{
+  position:relative;
+  border:1px solid rgba(165,176,194,.22);
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.22),rgba(255,255,255,.035)),
+    linear-gradient(115deg,rgba(80,140,255,.022),transparent 34%,rgba(210,150,255,.016));
+  box-shadow:
+    0 14px 28px rgba(31,41,55,.04),
+    inset 0 1px 0 rgba(255,255,255,.96),
+    inset 0 -1px 0 rgba(125,137,158,.045),
+    inset 1px 0 0 rgba(255,255,255,.06),
+    inset -1px 0 0 rgba(255,255,255,.035);
+  backdrop-filter:blur(7px) saturate(175%);
+  -webkit-backdrop-filter:blur(7px) saturate(175%);
+}
+.feedback{
+  border:1px solid rgba(255,255,255,.72);
+  background:linear-gradient(145deg,rgba(238,242,255,.54),rgba(255,255,255,.22));
+  box-shadow:0 12px 30px rgba(49,87,213,.10),inset 0 1px 0 rgba(255,255,255,.68);
+  backdrop-filter:blur(18px);
+  -webkit-backdrop-filter:blur(18px);
+}
+@media(max-width:780px){
+  header{top:0;margin-top:0;width:100%;border-radius:0}
+  }
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+
+
+/* Clear jelly / glass refraction */
+.hero,.card,.panel,.step{
+  overflow:hidden;
+}
+.hero::after,.card::after,.panel::after,.step::after{
+  background:
+    linear-gradient(115deg,
+      rgba(255,255,255,.28) 0%,
+      rgba(255,255,255,.05) 18%,
+      transparent 38%,
+      transparent 72%,
+      rgba(255,255,255,.10) 100%);
+  border:1px solid rgba(255,255,255,.10);
+}
+.hero,.card,.panel,.step{
+  -webkit-mask-image:linear-gradient(to bottom,#000 0 100%);
+  mask-image:linear-gradient(to bottom,#000 0 100%);
+}
+
+
+/* ===== Extra Liquid Glass depth ===== */
+:root{
+  --glass-shadow-outer: 0 18px 42px rgba(31,41,55,.08), 0 4px 12px rgba(31,41,55,.04);
+  --glass-shadow-inner: inset 0 1px 0 rgba(255,255,255,.96), inset 0 -1px 0 rgba(125,137,158,.08);
+}
+
+/* Layered surfaces: outer shadow + inner rim + subtle depth */
+.hero,.card{
+  box-shadow:
+    0 24px 54px rgba(31,41,55,.075),
+    0 8px 18px rgba(31,41,55,.045),
+    inset 0 1px 0 rgba(255,255,255,.96),
+    inset 0 -1px 0 rgba(135,148,170,.08);
+}
+
+.panel,.step{
+  box-shadow:
+    0 16px 34px rgba(31,41,55,.055),
+    0 4px 12px rgba(31,41,55,.025),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(135,148,170,.06);
+}
+
+/* Soft translucent top sheen */
+.hero::after,.card::after,.panel::after,.step::after{
+  background:
+    linear-gradient(
+      135deg,
+      rgba(255,255,255,.32) 0%,
+      rgba(255,255,255,.10) 17%,
+      transparent 38%,
+      transparent 72%,
+      rgba(255,255,255,.08) 100%
+    );
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.30);
+}
+
+/* A second inner contour gives the "thick glass" edge without opacity-heavy fill */
+.hero,.card,.panel,.step{
+  outline: 1px solid rgba(255,255,255,.12);
+  outline-offset: -3px;
+}
+
+/* Floating depth for the major sections */
+.hero{
+  transform:translateY(0);
+}
+.hero:hover{
+  transform:translateY(-2px);
+  box-shadow:
+    0 28px 60px rgba(31,41,55,.09),
+    0 10px 20px rgba(31,41,55,.05),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(135,148,170,.08);
+}
+.card:hover{
+  box-shadow:
+    0 26px 58px rgba(31,41,55,.085),
+    0 10px 22px rgba(31,41,55,.05),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(135,148,170,.08);
+}
+
+/* Picture areas sit one layer above their panels */
+.picturebox{
+  box-shadow:
+    0 12px 26px rgba(31,41,55,.045),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(135,148,170,.06);
+  outline:1px solid rgba(255,255,255,.18);
+  outline-offset:-2px;
+}
+
+/* Controls get a glass "cap" and soft lift */
+select,button,#uploadLabel{
+  box-shadow:
+    0 8px 18px rgba(31,41,55,.045),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(135,148,170,.07);
+}
+button:hover,#uploadLabel:hover,select:hover{
+  box-shadow:
+    0 12px 24px rgba(31,41,55,.07),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -1px 0 rgba(135,148,170,.08);
+}
+
+/* Layer separation between cards and page */
+.hero,.card{
+  isolation:isolate;
+}
+.hero::before,.card::before{
+  content:"";
+  position:absolute;
+  inset:6px;
+  border-radius:inherit;
+  border:1px solid rgba(255,255,255,.16);
+  pointer-events:none;
+  z-index:-1;
+}
+
+/* Keep the depth crisp on mobile and respect reduced motion */
+@media(max-width:780px){
+  .hero:hover,.card:hover{transform:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .hero,.card{transition:none}
+}
+
+
+/* ===== Stronger 3D / depth treatment ===== */
+.hero,.card,.panel,.step{
+  transform-style:preserve-3d;
+  perspective:1200px;
+}
+
+/* Stronger floating shadows create physical separation from the white page */
+.hero,.card{
+  box-shadow:
+    0 34px 70px rgba(31,41,55,.10),
+    0 14px 28px rgba(31,41,55,.055),
+    0 3px 8px rgba(31,41,55,.025),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(125,137,158,.085),
+    inset 1px 0 0 rgba(255,255,255,.11),
+    inset -1px 0 0 rgba(255,255,255,.07);
+}
+
+.panel{
+  box-shadow:
+    0 22px 44px rgba(31,41,55,.075),
+    0 7px 16px rgba(31,41,55,.035),
+    inset 0 1px 0 rgba(255,255,255,.98),
+    inset 0 -1px 0 rgba(125,137,158,.07),
+    inset 1px 0 0 rgba(255,255,255,.08),
+    inset -1px 0 0 rgba(255,255,255,.05);
+}
+
+/* Raised glass rim */
+.hero,.card,.panel,.step{
+  border-color:rgba(150,162,183,.24);
+  outline:1px solid rgba(255,255,255,.23);
+  outline-offset:-2px;
+}
+
+/* A second inner surface makes each panel feel thicker */
+.hero::after,.card::after,.panel::after,.step::after{
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.48),
+    inset 0 -2px 0 rgba(100,115,140,.045),
+    inset 2px 0 0 rgba(255,255,255,.08),
+    inset -2px 0 0 rgba(255,255,255,.045);
+}
+
+/* Elevated button depth */
+select,button,#uploadLabel{
+  box-shadow:
+    0 11px 24px rgba(31,41,55,.075),
+    0 3px 7px rgba(31,41,55,.028),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -2px 0 rgba(118,130,150,.07),
+    inset 1px 0 0 rgba(255,255,255,.10),
+    inset -1px 0 0 rgba(255,255,255,.055);
+}
+button:hover,#uploadLabel:hover,select:hover{
+  transform:translateY(-3px) scale(1.012);
+  box-shadow:
+    0 16px 30px rgba(31,41,55,.10),
+    0 5px 11px rgba(31,41,55,.04),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -2px 0 rgba(118,130,150,.08);
+}
+button:active,#uploadLabel:active{
+  transform:translateY(1px) scale(.985);
+  box-shadow:
+    0 5px 10px rgba(31,41,55,.045),
+    inset 0 2px 4px rgba(100,115,140,.06),
+    inset 0 1px 0 rgba(255,255,255,.82);
+}
+
+/* Picture and drawing areas feel slightly recessed */
+.picturebox{
+  box-shadow:
+    inset 0 2px 0 rgba(255,255,255,.97),
+    inset 0 -2px 0 rgba(118,130,150,.06),
+    inset 2px 0 0 rgba(255,255,255,.07),
+    inset -2px 0 0 rgba(255,255,255,.035),
+    0 14px 28px rgba(31,41,55,.045),
+    0 3px 8px rgba(31,41,55,.02);
+}
+
+#targetCanvas,#drawCanvas{
+  filter:drop-shadow(0 1px 1px rgba(0,0,0,.02));
+}
+
+/* Timer gets a more dimensional capsule */
+.timer{
+  box-shadow:
+    0 12px 24px rgba(31,41,55,.07),
+    0 3px 8px rgba(31,41,55,.025),
+    inset 0 1px 0 rgba(255,255,255,1),
+    inset 0 -2px 0 rgba(118,130,150,.065);
+}
+
+/* Very subtle parallax-like lift on desktop, not mouse-following */
+@media (min-width:781px){
+  .card:nth-of-type(2){
+    transform:translateY(-2px);
+  }
+  .panel{
+    transform:translateZ(0);
+  }
+}
+
+/* Keep the design calm on reduced-motion devices */
+@media(prefers-reduced-motion:reduce){
+  .hero,.card,.panel,.step,
+  button,#uploadLabel,select{
+    transform:none!important;
+    transition:none!important;
+  }
+}
+
+.timer{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:46px;
+  padding:7px 16px;
+  border-radius:999px;
+  border:1px solid rgba(165,176,194,.24);
+  background:linear-gradient(145deg,rgba(255,255,255,.30),rgba(255,255,255,.055));
+  box-shadow:0 8px 18px rgba(60,72,92,.045),inset 0 1px 0 rgba(255,255,255,.94),inset 0 -1px 0 rgba(130,142,163,.06);
+  backdrop-filter:blur(12px) saturate(180%);
+  -webkit-backdrop-filter:blur(12px) saturate(180%);
+  text-shadow:0 1px 0 rgba(255,255,255,.8);
+}
+
+/* Clear hierarchy for the three activity steps */
+.steps-title{
+  grid-column:1 / -1;
+  margin:0 0 2px;
+  color:#1f2937;
+  font-size:24px;
+}
+.steps-intro,.steps-note{
+  grid-column:1 / -1;
+  margin:0;
+  color:#667085;
+  line-height:1.55;
+}
+.steps-intro strong{
+  color:#344054;
+}
+.steps-note{
+  padding-top:2px;
+  font-size:13px;
+}
+.step{
+  display:flex;
+  align-items:flex-start;
+  gap:14px;
+}
+.step-number{
+  display:grid;
+  flex:0 0 42px;
+  width:42px;
+  height:42px;
+  place-items:center;
+  border:1px solid rgba(49,87,213,.16);
+  border-radius:14px;
+  background:rgba(49,87,213,.08);
+  color:#3157d5;
+  font-size:14px;
+  font-weight:800;
+}
+.step h3{
+  margin:2px 0 8px;
+  color:#3157d5;
+  font-size:18px;
+}
+.step p{
+  margin:0;
+  color:#667085;
+  line-height:1.55;
+}
+.step p strong{
+  display:inline-block;
+  margin-bottom:4px;
+  color:#344054;
+  font-size:13px;
+}

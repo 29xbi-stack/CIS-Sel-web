@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="styles.css">
+<title>Describe & Draw</title>
+</head>
+<body>
+<header>
+  <h1>Describe & Draw</h1>
+  <span>SEL / Counseling</span>
+</header>
+
+<main class="container">
+<section class="hero">
+  <h2>Describe it. Listen. Draw it.</h2>
+  <p>A quick partner drawing game that builds communication and active listening. One person describes a picture while the other draws from their words.</p>
+</section>
+
+<section class="steps" aria-labelledby="stepsTitle">
+  <h2 class="steps-title" id="stepsTitle">How to Play</h2>
+  <p class="steps-intro"><strong>Before you begin:</strong> Choose a grade band and round length, then select a built-in picture or upload your own.</p>
+  <article class="step">
+    <span class="step-number" aria-hidden="true">01</span>
+    <div>
+      <h3>Look</h3>
+      <p><strong>Speaker &middot; 5 seconds</strong><br>Study the picture before it hides. Notice the main shapes, sizes, positions, and details you will need to describe.</p>
+    </div>
+  </article>
+  <article class="step">
+    <span class="step-number" aria-hidden="true">02</span>
+    <div>
+      <h3>Describe</h3>
+      <p><strong>Speaker &middot; explain with words</strong><br>Guide your partner without showing the picture. Give clear clues about shapes, size, position, and details; the artist can ask questions when something is unclear.</p>
+    </div>
+  </article>
+  <article class="step">
+    <span class="step-number" aria-hidden="true">03</span>
+    <div>
+      <h3>Draw</h3>
+      <p><strong>Artist &middot; listen and sketch</strong><br>Draw from the speaker's directions without seeing the target. When the round ends, compare the pictures and discuss what helped you listen, explain, and work together.</p>
+    </div>
+  </article>
+  <p class="steps-note">The similarity score is a simple classroom estimate. The main goal is to practise clear communication, active listening, patience, and teamwork.</p>
+</section>
+
+<section class="card">
+  <h2 style="margin-top:0">Game Settings</h2>
+  <div class="controls">
+    <label for="grade">Grade</label>
+    <select id="grade">
+      <option value="1-4">Grade 1–4</option>
+      <option value="5-6">Grade 5–6</option>
+      <option value="7-8">Grade 7–8</option>
+      <option value="9-10" selected>Grade 9–10</option>
+    </select>
+
+    <label for="duration">Time</label>
+    <select id="duration">
+      <option value="2">2 min</option>
+      <option value="3">3 min</option>
+      <option value="4">4 min</option>
+      <option value="5" selected>5 min</option>
+    </select>
+
+    <label for="pictureMode">Picture</label>
+    <select id="pictureMode">
+      <option value="default">Default pictures</option>
+      <option value="custom">Uploaded pictures</option>
+    </select>
+
+    <label id="uploadLabel" for="imageUpload" style="display:none">↥ Upload Image</label>
+    <input id="imageUpload" type="file" accept="image/*" multiple style="display:none">
+
+    <button id="prevBtn" class="secondary" type="button">← Previous</button>
+    <button id="nextBtn" class="secondary" type="button">Next →</button>
+    <button id="randomBtn" class="secondary" type="button">🔀 Random</button>
+    <button id="startBtn" class="primary" type="button">▶ Start Round</button>
+    <button id="newBtn" class="secondary" type="button">New Picture</button>
+  </div>
+  <div id="status" class="status" aria-live="polite">Choose your settings and click Start Round.</div>
+  <div id="uploadStatus" class="small"></div>
+</section>
+
+<section class="card">
+  <div class="game">
+    <div class="panel">
+      <h3>👀 Speaker's Picture</h3>
+      <div class="picturebox"><canvas id="targetCanvas" width="700" height="420" aria-label="Target picture"></canvas></div>
+    </div>
+
+    <div class="panel">
+      <h3>✏️ Artist's Drawing</h3>
+      <div class="picturebox"><canvas id="drawCanvas" width="700" height="420" aria-label="Drawing canvas"></canvas></div>
+    </div>
+  </div>
+
+  <div class="controls actions">
+    <button id="finishBtn" class="primary" type="button">Finish Early</button>
+    <button id="clearBtn" class="secondary" type="button">Clear Drawing</button>
+    <button id="analyzeBtn" class="secondary" type="button">🤖 Analyze Similarity</button>
+    <span id="timer" class="timer">00:00</span>
+  </div>
+
+  <div id="feedback" class="feedback" aria-live="polite">
+    <strong>Similarity Result</strong>
+    <div id="score" class="score">0%</div>
+    <div id="message"></div>
+    <div class="bar"><div id="scoreBar"></div></div>
+    <div class="small">The score is a classroom prototype estimate based on visual similarity.</div>
+  </div>
+</section>
+
+</main>
+
+<script>
+(function(){
+'use strict';
+
+const grades = ['1-4','5-6','7-8','9-10'];
+const defaultPictures = [
+  {name:'House',kind:'house'},
+  {name:'Tree',kind:'tree'},
+  {name:'House & Sun',kind:'houseSun'},
+  {name:'House & Car',kind:'houseCar'},
+  {name:'Park',kind:'park'},
+  {name:'City',kind:'city'}
+];
+
+const customImages = {
+  '1-4': [],
+  '5-6': [],
+  '7-8': [],
+  '9-10': []
+};
+const customIndex = {'1-4':0,'5-6':0,'7-8':0,'9-10':0};
+
+let grade = '9-10';
+let mode = 'default';
+let defaultIndex = 0;
+let running = false;
+let previewTimer = null;
+let mainTimer = null;
+let seconds = 0;
+let currentTargetType = 'default';
+
+const gradeEl = document.getElementById('grade');
+const durationEl = document.getElementById('duration');
+const modeEl = document.getElementById('pictureMode');
+const uploadLabel = document.getElementById('uploadLabel');
+const uploadInput = document.getElementById('imageUpload');
+const startBtn = document.getElementById('startBtn');
+const newBtn = document.getElementById('newBtn');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const randomBtn = document.getElementById('randomBtn');
+const finishBtn = document.getElementById('finishBtn');
+const clearBtn = document.getElementById('clearBtn');
+const analyzeBtn = document.getElementById('analyzeBtn');
+const statusEl = document.getElementById('status');
+const uploadStatusEl = document.getElementById('uploadStatus');
+const timerEl = document.getElementById('timer');
+const feedbackEl = document.getElementById('feedback');
+const scoreEl = document.getElementById('score');
+const messageEl = document.getElementById('message');
+const scoreBarEl = document.getElementById('scoreBar');
+
+const target = document.getElementById('targetCanvas');
+const tc = target.getContext('2d');
+const draw = document.getElementById('drawCanvas');
+const dc = draw.getContext('2d');
+
+function formatTime(value){
+  const s = Math.max(0, Number(value) || 0);
+  return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0');
+}
+
+function clearTimers(){
+  clearTimeout(previewTimer);
+  clearInterval(mainTimer);
+  previewTimer = null;
+  mainTimer = null;
+}
+
+function resetTimer(){
+  clearTimers();
+  seconds = 0;
+  timerEl.textContent = '00:00';
+  running = false;
+  startBtn.disabled = false;
+}
+
+function clearDrawing(){
+  dc.clearRect(0,0,draw.width,draw.height);
+}
+
+function drawHouse(extra){
+  dcDummy(tc, extra);
+}
+function dcDummy(ctx, extra){
+  ctx.fillStyle='#f3f4f6';
+  ctx.strokeStyle='#1f2937';
+  ctx.lineWidth=6;
+  ctx.lineJoin='round';
+  ctx.strokeRect(210,170,280,150);
+  ctx.beginPath();ctx.moveTo(165,170);ctx.lineTo(350,55);ctx.lineTo(535,170);ctx.closePath();ctx.stroke();
+  ctx.fillRect(320,240,60,80);ctx.strokeRect(320,240,60,80);
+  ctx.beginPath();ctx.arc(435,230,25,0,Math.PI*2);ctx.stroke();
+  if(extra){drawSun(ctx);drawCar(ctx);}
+}
+function drawSun(ctx){
+  ctx.beginPath();ctx.arc(590,75,35,0,Math.PI*2);ctx.stroke();
+  for(let i=0;i<8;i++){
+    const a=i*Math.PI/4;
+    ctx.beginPath();
+    ctx.moveTo(590+48*Math.cos(a),75+48*Math.sin(a));
+    ctx.lineTo(590+68*Math.cos(a),75+68*Math.sin(a));
+    ctx.stroke();
+  }
+}
+function drawTree(ctx){
+  ctx.fillStyle='#f3f4f6';ctx.strokeStyle='#1f2937';ctx.lineWidth=6;
+  ctx.fillRect(75,215,48,110);ctx.strokeRect(75,215,48,110);
+  ctx.beginPath();ctx.arc(100,170,72,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(50,205,48,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(155,205,48,0,Math.PI*2);ctx.stroke();
+}
+function drawCar(ctx){
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=6;
+  ctx.beginPath();ctx.roundRect(185,260,310,65,14);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(235,260);ctx.lineTo(285,205);ctx.lineTo(395,205);ctx.lineTo(450,260);ctx.stroke();
+  ctx.beginPath();ctx.arc(245,325,28,0,Math.PI*2);ctx.stroke();
+  ctx.beginPath();ctx.arc(435,325,28,0,Math.PI*2);ctx.stroke();
+}
+function drawCloud(ctx){
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=6;
+  ctx.beginPath();ctx.arc(120,90,30,0,Math.PI*2);ctx.arc(158,75,40,0,Math.PI*2);ctx.arc(200,90,30,0,Math.PI*2);ctx.stroke();
+}
+function drawFlag(ctx){
+  ctx.strokeStyle='#1f2937';ctx.lineWidth=6;
+  ctx.beginPath();ctx.moveTo(560,190);ctx.lineTo(560,330);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(560,195);ctx.lineTo(650,225);ctx.lineTo(560,255);ctx.closePath();ctx.stroke();
+}
+
+function drawDefaultPicture(){
+  tc.clearRect(0,0,target.width,target.height);
+  tc.fillStyle='#fff';tc.fillRect(0,0,target.width,target.height);
+  tc.strokeStyle='#1f2937';tc.fillStyle='#f3f4f6';tc.lineWidth=6;
+  const item = defaultPictures[defaultIndex % defaultPictures.length];
+
+  if(item.kind==='house') dcDummy(tc,false);
+  if(item.kind==='tree') drawTree(tc);
+  if(item.kind==='houseSun') dcDummy(tc,true);
+  if(item.kind==='houseCar'){dcDummy(tc,false);drawCar(tc);}
+  if(item.kind==='park'){drawTree(tc);drawSun(tc);drawCloud(tc);}
+  if(item.kind==='city'){
+    dcDummy(tc,false);drawTree(tc);drawSun(tc);drawCar(tc);drawCloud(tc);drawFlag(tc);
+    tc.beginPath();tc.moveTo(0,350);tc.lineTo(700,350);tc.stroke();
+  }
+  currentTargetType='default';
+}
+
+function getCustomList(){
+  return customImages[grade] || [];
+}
+
+function drawCustomPicture(){
+  const list=getCustomList();
+  tc.clearRect(0,0,target.width,target.height);
+  tc.fillStyle='#fff';tc.fillRect(0,0,target.width,target.height);
+
+  if(!list.length){
+    tc.fillStyle='#667085';
+    tc.font='24px Arial';
+    tc.textAlign='center';
+    tc.textBaseline='middle';
+    tc.fillText('No uploaded pictures for Grade '+grade,target.width/2,target.height/2);
+    currentTargetType='none';
+    return;
+  }
+
+  const item=list[customIndex[grade] % list.length];
+  const img=item.img;
+  const scale=Math.min(target.width/img.width,target.height/img.height);
+  const w=img.width*scale;
+  const h=img.height*scale;
+  tc.drawImage(img,(target.width-w)/2,(target.height-h)/2,w,h);
+  currentTargetType='custom';
+}
+
+function renderTarget(){
+  if(mode==='custom') drawCustomPicture();
+  else drawDefaultPicture();
+}
+
+function updateUploadVisibility(){
+  uploadLabel.style.display = mode==='custom' ? 'inline-flex' : 'none';
+}
+
+function updatePictureStatus(){
+  if(mode==='custom'){
+    const list=getCustomList();
+    updateUploadVisibility();
+    uploadStatusEl.textContent = list.length
+      ? list.length+' uploaded picture'+(list.length===1?'':'s')+' saved for Grade '+grade+' • Picture '+(customIndex[grade]+1)+'/'+list.length
+      : 'No uploaded pictures saved for Grade '+grade+' yet.';
+  } else {
+    updateUploadVisibility();
+    uploadStatusEl.textContent = 'Default pictures • Picture '+(defaultIndex+1)+'/'+defaultPictures.length;
+  }
+}
+
+function showTarget(visible){
+  target.style.visibility = visible ? 'visible' : 'hidden';
+}
+
+function movePicture(step){
+  if(mode==='custom'){
+    const list=getCustomList();
+    if(!list.length){
+      statusEl.textContent='No uploaded pictures for Grade '+grade+'. Choose Upload Images first.';
+      return;
+    }
+    customIndex[grade] = (customIndex[grade] + step + list.length) % list.length;
+  } else {
+    defaultIndex = (defaultIndex + step + defaultPictures.length) % defaultPictures.length;
+  }
+  renderTarget();
+  updatePictureStatus();
+}
+
+function randomPicture(){
+  if(mode==='custom'){
+    const list=getCustomList();
+    if(!list.length){
+      statusEl.textContent='No uploaded pictures for Grade '+grade+'. Choose Upload Images first.';
+      return;
+    }
+    if(list.length>1){
+      let next=customIndex[grade];
+      while(next===customIndex[grade]) next=Math.floor(Math.random()*list.length);
+      customIndex[grade]=next;
+    }
+  } else {
+    if(defaultPictures.length>1){
+      let next=defaultIndex;
+      while(next===defaultIndex) next=Math.floor(Math.random()*defaultPictures.length);
+      defaultIndex=next;
+    }
+  }
+  renderTarget();
+  updatePictureStatus();
+}
+
+function finishRound(manual){
+  if(!running && !manual) return;
+  clearTimers();
+  running=false;
+  startBtn.disabled=false;
+  if(manual){
+    seconds=0;
+    timerEl.textContent='00:00';
+    statusEl.textContent='Finished early. Timer reset to 00:00.';
+  } else {
+    seconds=0;
+    timerEl.textContent='00:00';
+    statusEl.textContent="Time's up. The target is shown again.";
+  }
+  showTarget(true);
+}
+
+function startMainTimer(){
+  seconds = Number(durationEl.value) * 60;
+  timerEl.textContent = formatTime(seconds);
+  mainTimer = setInterval(function(){
+    seconds -= 1;
+    timerEl.textContent = formatTime(seconds);
+    if(seconds<=0){
+      clearInterval(mainTimer);
+      mainTimer=null;
+      running=false;
+      startBtn.disabled=false;
+      showTarget(true);
+      statusEl.textContent="Time's up. The target is shown again.";
+    }
+  },1000);
+}
+
+function startRound(){
+  if(running) return;
+
+  grade=gradeEl.value;
+  mode=modeEl.value;
+
+  if(mode==='custom' && !getCustomList().length){
+    statusEl.textContent='Please upload at least one image for Grade '+grade+' before starting.';
+    updateUploadVisibility();
+    return;
+  }
+
+  clearTimers();
+  feedbackEl.style.display='none';
+  clearDrawing();
+  renderTarget();
+  showTarget(true);
+
+  running=true;
+  startBtn.disabled=true;
+  let left=5;
+  statusEl.textContent='Speaker: study the picture — 5s';
+
+  const previewCountdown=setInterval(function(){
+    left -= 1;
+    if(left>0) statusEl.textContent='Speaker: study the picture — '+left+'s';
+  },1000);
+
+  previewTimer=setTimeout(function(){
+    clearInterval(previewCountdown);
+    showTarget(false);
+    statusEl.textContent='Drawing time! The picture is hidden.';
+    startMainTimer();
+  },5000);
+}
+
+function analyzeSimilarity(){
+  // Compare normalized grayscale pixels.
+  const size=64;
+  const a=document.createElement('canvas');
+  const b=document.createElement('canvas');
+  a.width=a.height=b.width=b.height=size;
+  const ac=a.getContext('2d'), bc=b.getContext('2d');
+
+  ac.fillStyle='#fff';ac.fillRect(0,0,size,size);
+  bc.fillStyle='#fff';bc.fillRect(0,0,size,size);
+
+  // Target must be shown temporarily for evaluation.
+  const wasVisible=target.style.visibility!=='hidden';
+  ac.drawImage(target,0,0,size,size);
+  bc.drawImage(draw,0,0,size,size);
+
+  const A=ac.getImageData(0,0,size,size).data;
+  const B=bc.getImageData(0,0,size,size).data;
+
+  let diff=0, inkA=0, inkB=0, overlap=0;
+  for(let i=0;i<A.length;i+=4){
+    const ga=(A[i]+A[i+1]+A[i+2])/3;
+    const gb=(B[i]+B[i+1]+B[i+2])/3;
+    const ia=255-ga, ib=255-gb;
+    diff += Math.abs(ia-ib);
+    const aInk=ia>35, bInk=ib>35;
+    if(aInk) inkA++;
+    if(bInk) inkB++;
+    if(aInk && bInk) overlap++;
+  }
+
+  const total=size*size;
+  const intensityScore=Math.max(0,1-diff/(total*255));
+  const overlapScore=overlap/Math.max(1,Math.max(inkA,inkB));
+  let score=Math.round(Math.max(0,Math.min(100,(intensityScore*.45+overlapScore*.55)*100)));
+
+  scoreEl.textContent=score+'%';
+  scoreBarEl.style.width=score+'%';
+  messageEl.textContent =
+    score>=80 ? 'Excellent! Most important visual features match.' :
+    score>=60 ? 'Good job! Many visual features match.' :
+    score>=40 ? 'Nice try! Add clearer shapes, positions, and details.' :
+                'Keep practicing clear descriptions and careful listening.';
+  feedbackEl.style.display='block';
+
+  // Restore the previous visibility state.
+  if(running && !wasVisible) showTarget(false);
+}
+
+function handleUpload(event){
+  const files=Array.from(event.target.files || []);
+  if(!files.length) return;
+
+  const selectedGrade=gradeEl.value;
+  let finished=0;
+  let accepted=0;
+  let failed=0;
+
+  files.forEach(function(file){
+    if(!file.type.startsWith('image/') || file.size>8*1024*1024){
+      finished++;
+      failed++;
+      return;
+    }
+
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const img=new Image();
+      img.onload=function(){
+        customImages[selectedGrade].push({img:img,name:file.name});
+        accepted++;
+        finished++;
+        if(finished===files.length) finalizeUpload(selectedGrade,accepted,failed);
+      };
+      img.onerror=function(){
+        failed++;
+        finished++;
+        if(finished===files.length) finalizeUpload(selectedGrade,accepted,failed);
+      };
+      img.src=ev.target.result;
+    };
+    reader.onerror=function(){
+      failed++;
+      finished++;
+      if(finished===files.length) finalizeUpload(selectedGrade,accepted,failed);
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function finalizeUpload(selectedGrade,accepted,failed){
+  grade=selectedGrade;
+  mode='custom';
+  modeEl.value='custom';
+  if(accepted>0){
+    customIndex[selectedGrade]=customImages[selectedGrade].length-accepted;
+    renderTarget();
+    updateUploadVisibility();
+    updatePictureStatus();
+  }
+  statusEl.textContent =
+    accepted+' image'+(accepted===1?'':'s')+' added for Grade '+selectedGrade+
+    (failed ? ' • '+failed+' file'+(failed===1?'':'s')+' skipped.' : '')+
+    ' Click Start Round.';
+}
+
+gradeEl.addEventListener('change',function(){
+  grade=gradeEl.value;
+  renderTarget();
+  updatePictureStatus();
+  statusEl.textContent='Grade '+grade+' selected. Your saved uploaded pictures for this grade are ready.';
+});
+
+durationEl.addEventListener('change',function(){
+  if(!running) timerEl.textContent='00:00';
+});
+
+modeEl.addEventListener('change',function(){
+  mode=modeEl.value;
+  renderTarget();
+  updatePictureStatus();
+  statusEl.textContent=mode==='custom'
+    ? (getCustomList().length ? 'Uploaded picture library selected.' : 'Upload images for Grade '+grade+'.')
+    : 'Default picture library selected.';
+});
+
+uploadInput.addEventListener('change',handleUpload);
+startBtn.addEventListener('click',startRound);
+finishBtn.addEventListener('click',function(){finishRound(true)});
+clearBtn.addEventListener('click',clearDrawing);
+analyzeBtn.addEventListener('click',analyzeSimilarity);
+prevBtn.addEventListener('click',function(){movePicture(-1)});
+nextBtn.addEventListener('click',function(){movePicture(1)});
+randomBtn.addEventListener('click',randomPicture);
+newBtn.addEventListener('click',function(){
+  resetTimer();
+  movePicture(1);
+  clearDrawing();
+  feedbackEl.style.display='none';
+  showTarget(true);
+  statusEl.textContent='New picture ready. Click Start Round.';
+});
+
+let drawing=false;
+draw.addEventListener('pointerdown',function(e){
+  drawing=true;
+  draw.setPointerCapture(e.pointerId);
+  const r=draw.getBoundingClientRect();
+  dc.beginPath();
+  dc.moveTo((e.clientX-r.left)*draw.width/r.width,(e.clientY-r.top)*draw.height/r.height);
+});
+draw.addEventListener('pointermove',function(e){
+  if(!drawing) return;
+  const r=draw.getBoundingClientRect();
+  dc.lineWidth=5;
+  dc.lineCap='round';
+  dc.strokeStyle='#1f2937';
+  dc.lineTo((e.clientX-r.left)*draw.width/r.width,(e.clientY-r.top)*draw.height/r.height);
+  dc.stroke();
+});
+function endDrawing(){drawing=false}
+draw.addEventListener('pointerup',endDrawing);
+draw.addEventListener('pointercancel',endDrawing);
+draw.addEventListener('pointerleave',endDrawing);
+
+grade=gradeEl.value;
+mode=modeEl.value;
+renderTarget();
+updateUploadVisibility();
+updatePictureStatus();
+timerEl.textContent='00:00';
+
+})();
+
+/* Liquid Glass pointer-follow interaction */
+(function(){
+  document.querySelectorAll('button,#uploadLabel,select').forEach(function(control){
+    control.addEventListener('pointerdown',function(){control.style.transform='translateY(1px) scale(.985)'});
+    function release(){control.style.transform=''}
+    control.addEventListener('pointerup',release);
+    control.addEventListener('pointercancel',release);
+    control.addEventListener('pointerleave',release);
+  });
+})();
+
+</script>
+</body>
+</html>
